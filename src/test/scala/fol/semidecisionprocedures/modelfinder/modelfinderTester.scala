@@ -3,7 +3,6 @@ package fol.semidecisionprocedures.modelfinder
 import org.warthog.fol.formulas.{FOLPredicate, FOLFunction, FOLVariable}
 import org.warthog.fol.semidecisionprocedures.modelfinder.{FOLLiteral, Clause,Modelfinder,CNF}
 import org.specs2.mutable._
-import org.warthog.pl.decisionprocedures.satsolver.impl.picosat.Picosat
 import org.warthog.pl.decisionprocedures.satsolver.{Infinity, Solver, sat}
 import org.warthog.pl.formulas.{PL, PLAtom}
 import org.warthog.generic.formulas.{Formula, Or, Not}
@@ -32,7 +31,6 @@ val C = Clause(Set(gxfxy))
 val fxy = FOLLiteral(true,FOLPredicate("=",f,x))
 val notfxy = FOLLiteral(false,FOLPredicate("=",f,x))
 val fxynotfxy = Clause(Set(fxy,notfxy))
-val ps = new Picosat
 var rv0: Int = _
 val one = FOLFunction("1")
 val two = FOLFunction("2")
@@ -65,6 +63,8 @@ val paradoxExample1 = Clause(Set(FOLLiteral(true,FOLPredicate("P",a,g))))
 val paradoxExample2 = Clause(Set(FOLLiteral(false,FOLPredicate("P",a,g))))
 val paradoxExample3 = Clause(Set(FOLLiteral(true,FOLPredicate("P",FOLFunction("f",a,b),FOLFunction("f",b,a)))))
 val paradoxExample4 = Clause(Set(FOLLiteral(true,FOLPredicate("P",x,y)),FOLLiteral(true,FOLPredicate("Q",x,z))))
+val flatteningExample1 = Clause(Set(FOLLiteral(false,FOLPredicate("=",x,y))))
+val flatteningExample2 = Clause(Set(FOLLiteral(false,FOLPredicate("=",x,y)),FOLLiteral(true,FOLPredicate("P",y,a))))
 
 
 
@@ -107,49 +107,7 @@ fxynotfxy.toString should{
      val form = Or[PL](atom1,atomnot1)
      fxynotfxy.clauseflatten.translateToPL() must be equalTo form
    }
-
-
-    "be satisfiable" in {
-      Modelfinder.reset()
-      val form = fxynotfxy.clauseflatten.translateToPL()
-      //form.atoms
-      sat(ps) {
-        (solver: Solver) => {
-          solver.add(form)
-          rv0 = solver.sat(Infinity)
-        }
-      }
-      rv0 must be equalTo (1)
-    }
 }
-
-  cnf1.toString should{
-    "be satisfiable" in {
-      Modelfinder.reset()
-      Modelfinder.main(cnf1,2,"-result")must be equalTo "Sat: Map(x -> 1, y -> 2)"
-    }
-  }
-
-  cnf2.toString should{
-    "be unsatisfiable" in {
-      Modelfinder.reset()
-      Modelfinder.main(cnf2,2,"-result")must be equalTo "UNSAT"
-    }
-  }
-
-  cnf3.toString should{
-    "be unsatisfiable" in {
-      Modelfinder.reset()
-      Modelfinder.main(cnf3,2,"-result")must be equalTo "UNSAT"
-    }
-  }
-
-  cnf4.toString should{
-    "be satisfiable" in {
-      Modelfinder.reset()
-      Modelfinder.main(cnf4,2,"-result")must be equalTo "Sat: Map(x -> 1, y -> 1)"
-    }
-  }
 
   emptyClause.toString should{
     "be flattend to itself" in{
@@ -174,10 +132,6 @@ fxynotfxy.toString should{
     "be groundsplit to itself" in{
       Modelfinder.runSplitGrounds(emptyCNF) must be equalTo emptyCNF
     }
-    "be satisfiable" in{
-      Modelfinder.reset()
-      Modelfinder.main(emptyCNF,2,"") must be equalTo "Sat: Map()"
-    }
 
   }
 
@@ -190,10 +144,6 @@ fxynotfxy.toString should{
     }
     "be groundsplit to itself" in{
       Modelfinder.runSplitGrounds(CNFofEmptryClause) must be equalTo CNFofEmptryClause
-    }
-    "be unsatisfiable" in{
-      Modelfinder.reset()
-      Modelfinder.main(CNFofEmptryClause,2,"") must be equalTo "UNSAT"
     }
 
   }
@@ -428,6 +378,21 @@ fxynotfxy.toString should{
       paradoxExample4.splitGrounds must be equalTo Set(paradoxExample4)
     }
   }
+
+  flatteningExample1.toString should{
+    "be flattend to itself" in{
+      Modelfinder.reset()
+      flatteningExample1.clauseflatten must be equalTo flatteningExample1
+    }
+  }
+
+  flatteningExample2.toString should{
+    "be flattend correctly" in{
+      Modelfinder.reset()
+      flatteningExample2.clauseflatten must be equalTo Clause(Set(FOLLiteral(true,FOLPredicate("P",x,a)))).clauseflatten
+    }
+  }
+
 
 
 

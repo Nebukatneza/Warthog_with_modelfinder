@@ -43,10 +43,10 @@ object Modelfinder{
     val M =  FOLLiteral(true,FOLPredicate("Q",x,y,z))
     val N =  FOLLiteral(true,FOLPredicate("R",d,f))
     val O =  FOLLiteral(true,FOLPredicate("O",a,d))
-    val P =  FOLLiteral(true,FOLPredicate("=",x,zwei))
+    val P =  FOLLiteral(true,FOLPredicate("P",f,x))
     val K =  FOLLiteral(true,FOLPredicate("=",y,eins))
     val C = Clause(Set(L))
-    val cnf = CNF(Set(Clause(Set(P)),Clause(Set(K)),Clause(Set(L))))//,Clause(Set(N)),Clause(Set(O)),Clause(Set(P)),Clause(Set(K))))
+    val cnf = CNF(Set(Clause(Set(P))))//,Clause(Set(N)),Clause(Set(O)),Clause(Set(P)),Clause(Set(K))))
 
     return cnf
   }
@@ -62,6 +62,8 @@ object Modelfinder{
     this.constantName = "Constant"
     this.constantHash=HashMap()
   }
+
+
   /**
    * Runs the Modelfinder (main method)
    * @param cnf
@@ -97,8 +99,6 @@ object Modelfinder{
     return result
   }
 
-
-
   def run(cnf:CNF,domain:Int):String={
     //val flattendcnf = runflatten(cnf)
     val funcclauses = functionaldefs(domain,cnf)
@@ -121,181 +121,11 @@ object Modelfinder{
     return "UNSAT"
   }
 
-
-
-
-
-
-  /*def run(cnf:CNF,domain:Int):(CNF,Int,CNF,Map[FOLVariable,FOLFunction],Set[Clause],Int,Int,Int)={
-    val ps = new Picosat
-    var rv0:Int = 2
-    getfreeNames(cnf)
-    val flattendcnf = runflatten(cnf)
-    val vars:List[FOLVariable]=flattendcnf.getVariables.map(f=>f.asInstanceOf[FOLVariable]).toList
-    val mapLists:List[Map[FOLVariable,FOLFunction]]=createMapLists(domain,vars).map(f => f.toMap)
-    val funcclauses = functionaldefs(domain,flattendcnf)
-    var outString:String = ""
-    var loopCounter = 0
-    var maxPossibleLoops = mapLists.length
-    var currentMap =  Map[FOLVariable,FOLFunction]()
-    var currentModel = Set[Clause]()
-
-
-    sat(ps) {
-      (solver: Solver) => {
-        for(n<-funcclauses){
-          solver.add(n.translateToPL())
-        }
-        for(f<-mapLists ; if(rv0 != 1)){
-          ps.mark()
-          currentMap = f
-          val newcnf = CNF(flattendcnf.substitute(f).clauseset)
-          for(c<-newcnf.clauseset){
-            solver.add(c.translateToPL())
-          }
-          rv0 = solver.sat(Infinity)
-          if(rv0==1)
-            currentModel = newcnf.clauseset//translateToModel(ps.getModel())
-            //outString = "Clauses: " + translateToModel(ps.getModel()).toString+"\nMap: " + f.-(FOLVariable("0")).toString()
-          else
-            ps.undo()
-          loopCounter = loopCounter + 1
-        }
-
-      }
-    }
-
-        return (cnf,domain,flattendcnf,currentMap,currentModel,loopCounter,maxPossibleLoops,rv0)
-
-  }                  */
-
- /* def run(cnf:CNF,domain:Int):String={
-    val flattendcnf = cnf //runflatten(cnf)
-    val funcclauses = functionaldefs(domain,flattendcnf)
-    val clauseset = flattendcnf.clauseset
-    val ps = new Picosat
-    var result:Option[Map[FOLVariable,Int]] = None
-    sat(ps) {
-      (solver: Solver) => {
-        for(n<-funcclauses){
-          solver.add(n.translateToPL())
-        }
-        ps.mark()
-        result = testCNF(flattendcnf,Map(),domain,ps,solver)
-
-      }}
-    if(!result.isEmpty)
-      return "Sat: "+result.get.toString()
-    return "UNSAT"
-  }
-
-    def getFinalInstantiation(instantiation:Map[FOLVariable,Int]):Map[FOLVariable,FOLFunction]={
-      instantiation.map(f=>(f._1->FOLFunction(f._2.toString)))
-    }
-
-    def getInitialInstantiation(instantiation:Map[FOLVariable,Int],freeVars:Set[FOLVariable],c:Clause):Option[Map[FOLVariable,Int]]={
-      var resultmap = Map[FOLVariable,Int]()
-      for (d<-c.getVariables.asInstanceOf[Set[FOLVariable]]){
-        if(freeVars.contains(d)){
-          if (instantiation.contains(d)){
-              resultmap = resultmap.+(d->(instantiation.getOrElse(d,3)))
-          }else
-            resultmap = resultmap.+(d->1)
-        }else
-          resultmap = resultmap.+(d->instantiation.getOrElse(d,0))
-      }
-      return Some(resultmap.toSeq.sortBy(_._1.name).toMap)
-  }
-
-    def getNextInstantiation(instantiation:Map[FOLVariable,Int],freeVars:Set[FOLVariable],domain:Int):Option[Map[FOLVariable,Int]]={
-      instantiation.toSeq.sortBy(_._1.name).toMap
-      if (instantiation.isEmpty)
-        return None
-      val variable = instantiation.head._1
-      val value = instantiation.head._2
-       if(freeVars.contains(variable)&& (value < domain))
-        return Some(instantiation.tail.+(variable -> (value + 1)).toSeq.sortBy(_._1.name).toMap)
-       val newmap = getNextInstantiation(instantiation.tail,freeVars,domain)
-      if(newmap.isEmpty)
-       return newmap
-      else
-       return Some(newmap.get.+(variable->1).toSeq.sortBy(_._1.name).toMap)
-  }
-  */
-
-
   def testClauseInstantiation(c:Option[Clause],solver:Solver):Boolean={
     if (!c.isEmpty)
       solver.add(c.get.translateToPL())
     return (solver.sat(Infinity)==1)
   }
-
-  /*def testCNF(cnf:CNF,inst:Map[FOLVariable,Int],domain:Int,ps:Picosat,solver:Solver):Option[Map[FOLVariable,Int]]={
-    println(cnf)
-    var freeVars = Set[FOLVariable]()
-    var setVars = Set[FOLVariable]()
-    var result = false
-    var instantiation = inst
-    var schleifenzähler = 1
-    var instanzierungzähler = 1
-    var instantiationclause:Option[Clause] = None
-    for (c<-cnf.clauseset){
-      result = false
-      for (v<-c.getVariables){
-        if (!(setVars.contains(v.asInstanceOf[FOLVariable])))
-          freeVars = freeVars.+(v.asInstanceOf[FOLVariable])
-      }
-      var currentInstantiation:Option[Map[FOLVariable,Int]] = getInitialInstantiation(instantiation,freeVars,c)
-
-      if(currentInstantiation.isEmpty){
-        println("schleifenzähler: "+ (schleifenzähler-1) + "\n Instanzierungszähler: " + (instanzierungzähler-1) +"\n Model: " + translateToModel(ps.getModel())+"\n Instanzierung: " + instantiation+"\n InstanzierungsKlausel: " +instantiationclause )
-
-        return None
-      }
-      while(!currentInstantiation.isEmpty && ! result){
-        instantiationclause = c.substitute(getFinalInstantiation(currentInstantiation.get))
-        result = testClauseInstantiation(instantiationclause,solver)
-        instantiation = instantiation ++ currentInstantiation.get
-        println(currentInstantiation + instantiation.toString())
-        currentInstantiation = getNextInstantiation(currentInstantiation.get,freeVars,domain)
-        if(! result){
-          //println("und jetzt undo")
-          ps.undo()
-        }
-        instanzierungzähler = instanzierungzähler +1
-      }
-      if(! result){
-        println("RAUS")
-        val newinst = getNextInstantiation(instantiation,c.getVariables.asInstanceOf[Set[FOLVariable]],domain)
-        if(newinst.isEmpty)
-          return None
-        else
-          return testCNF(cnf,newinst.get,domain,ps,solver)    //backtrack hier ist falsch!
-      }
-      setVars = setVars++freeVars
-      freeVars = Set[FOLVariable]()
-      schleifenzähler = schleifenzähler+1
-    }
-    println("schleifenzähler: "+ (schleifenzähler-1) + "\n Instanzierungszähler: " + (instanzierungzähler-1) +/*"\n Model: " + translateToModel(ps.getModel())+*/"\n Instanzierung: " + instantiation+"\n InstanzierungsKlausel: " +instantiationclause)
-    return Some(instantiation)
-  }*/
-
-  /*def testCNF(cnf:CNF,inst:Map[FOLVariable,Int],domain:Int,ps:Picosat,solver:Solver):Option[Map[FOLVariable,Int]]={
-    val clauseset = cnf.clauseset
-    if(cnf.clauseset.isEmpty)
-      return Some(Map[FOLVariable,Int]())
-    return clauseset.head.testClause(clauseset.tail,Set[FOLVariable](),Map[FOLVariable,Int](),domain,ps,solver)._1
-  } */
-
-  /**
-   * searches for free variable and constant names in the cnf
-   * //@param cnf
-   */
-
-  /*def getfreeNames(cnf:CNF)={
-  getfreeVariableName(cnf)
-  //getfreeConstantName(cnf)
-  } */
 
   /**
    * flattens the cnf
@@ -383,22 +213,6 @@ object Modelfinder{
     }
   }
 
-  /**
-   * instantiates the variables in the cnf by values of the domain
-   * @param domain
-   * @param cnf
-   * @return
-
-  def instantiate(domain: Int,cnf: CNF):CNF={
-    val vars:List[FOLVariable]=cnf.getVariables.map(f=>f.asInstanceOf[FOLVariable]).toList
-    val mapLists:List[Map[FOLVariable,FOLFunction]/]=createMapLists(domain,vars).map(f => f.toMap)
-    var newcnf=CNF(Set())
-    for(f<-mapLists){
-      newcnf = CNF(cnf.substitute(f).clauseset++newcnf.clauseset)
-    }
-    return newcnf
-  }*/
-
   def functionaldefs(domain: Int,cnf:CNF):Set[Clause]={
     val funcs:List[FunctionSymbol]=cnf.getOnlyFunctions
     var newclauses:List[Clause]=List[Clause]()
@@ -424,7 +238,7 @@ object Modelfinder{
 
   def functionclauses(domain:Int,f:FunctionSymbol):List[Clause]={
     var newclauses:List[Clause]=List[Clause]()
-    val funlis = argumentFunctionList(domain,f)
+    val funlis = allArgumentsFunctionList(domain,f)
       for (d<-1 to domain){
         for (e<-1 to domain){                                                                                           // Functional definitions
           if (d.equals(e)){
@@ -437,11 +251,13 @@ object Modelfinder{
           }
 
         }
-        var newfunclause=Clause(Set())                                                                                   //Totality definitions
-        for (f<-funlis){
-          newfunclause = Clause(newfunclause.entry ++ Set(FOLLiteral(true,FOLPredicate("=",f,FOLVariable(d.toString())))))
+      }
+    for (f<-funlis){
+        var newfunclauseset=Set[FOLLiteral]()                                                                                   //Totality definitions
+        for (i<- 1 to domain){
+          newfunclauseset = newfunclauseset ++ Set(FOLLiteral(true,FOLPredicate("=",f,FOLVariable(i.toString()))))
         }
-        newclauses = newclauses ++ List(newfunclause)
+        newclauses = newclauses ++ List(Clause(newfunclauseset))
       }
 
     return newclauses
@@ -453,75 +269,24 @@ object Modelfinder{
    * @param f
    * @return
    */
-  def argumentFunctionList(domain:Int,f:FunctionSymbol):List[FOLFunction]={
-     val lis:List[List[FOLVariable]] = buildArityLists(domain,f.arity)
-     var newFunctionslis = List[FOLFunction]()
-     for (l<-lis){
-                  newFunctionslis = newFunctionslis++ List(FOLFunction(f,l.toSeq:_*))
-     }
+  def allArgumentsFunctionList(domain:Int,f:FunctionSymbol):List[FOLFunction]={
+    var newFunctionslis = List[FOLFunction]()
+    if(f.arity == 0)
+      return List(FOLFunction(f))
+    for(m<-Clause.allNTuples(f.arity,Clause.toCartesianInput((1 until domain+1).toStream))){
+        newFunctionslis = newFunctionslis++ List(FOLFunction(f,m.map(i=>FOLFunction(i.toString)).toSeq:_*))
+    }
     return newFunctionslis
   }
-
-  /**
-   * builds a list of different argument for the given arity and the domain
-   * @param domain
-   * @param arity
-   * @return
-   */
-  def buildArityLists(domain:Int,arity:Int):List[List[FOLVariable]]={
-    if (arity==0){
-      return List(List())
-    }
-    var newArityLists=List[List[FOLVariable]]()
-    val rekurs = buildArityLists(domain,arity-1)
-    for(d<-1 to domain){
-       newArityLists = newArityLists ++ rekurs.map(f=>f++List(FOLVariable(d.toString)))
-    }
-  return newArityLists
-  }
-
-  /**
-   * builds a List of all Maps from Variables to domainelements
-   * //@param domain
-   * //@param vars
-   * //@return
-   */
-  /*def createMapLists(domain: Int,vars: List[FOLVariable]):List[Map[FOLVariable,FOLFunction]]={
-    if (vars==List[Map[FOLVariable,FOLFunction]]())
-      {return List(Map(FOLVariable("0")->FOLFunction("0")))}
-    var mapList = createMapLists(domain:Int,vars.tail)
-    var newList = List[Map[FOLVariable,FOLFunction]]()
-    for(i<-1 to domain){
-     newList = newList ++ mapList.map(m => mappinghelper(m,vars.head,FOLFunction(FunctionSymbol(i.toString(),0))))
-    }
-    return newList
-  }  */
-
-  def mappinghelper(m:Map[FOLVariable,FOLFunction],v:FOLVariable,i:FOLFunction) = m.+(v -> i)
 
   def translateToModel(form:Formula[PL]):Set[Clause]={
     var result = Set():Set[Clause]
     form match {
-      case And(preds@_*) => for(p:Formula[PL]<-preds){result= result ++ Set(translateToModelHelper(p))}
+      case And(preds@_*) => for(p:Formula[PL]<-preds){result= result ++ translateToModel(p)}
                             return result
-      case atom:Atom[PL] => return Set(translateToModelHelper(atom))
-      case Not(atom:Atom[PL]) => return Set(translateToModelHelper(Not(atom)))
+      case atom:Atom[PL] => return Set(Clause(Set(FOLLiteral(true,predhashreverse.get(atom).get))))
+      case Not(atom:Atom[PL]) => return Set(Clause(Set(FOLLiteral(false,predhashreverse.get(atom).get))))
       case other => sys.error("Something went wrong with the translate to Model of the sat-solver result: The entry was no And but: "+form.toString)
       }
-
-
     }
-
-
-    def translateToModelHelper(form:Formula[PL]):Clause={
-      form match {
-        case Not(atom:Atom[PL]) =>  Clause(Set(FOLLiteral(false,predhashreverse.get(atom).get)))
-        case atom:Atom[PL] => Clause(Set(FOLLiteral(true,predhashreverse.get(atom).get)))
-        case other => sys.error("Something went wrong with the translate to Model of the sat-solver result: The entry was no Atom")
-
-      }
-    }
-
-
-
 }

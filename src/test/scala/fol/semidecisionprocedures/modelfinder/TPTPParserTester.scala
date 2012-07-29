@@ -26,9 +26,6 @@ class TPTPParserTester extends Specification{
     "be interpreted correctly" in {
       TPTPParser.interpredProblem(test1) must be equalTo cnf1
     }
-    "be sat" in{
-      Modelfinder.run(TPTPParser.interpredProblem(test1),2) must be equalTo "Sat"
-    }
   }
 
 

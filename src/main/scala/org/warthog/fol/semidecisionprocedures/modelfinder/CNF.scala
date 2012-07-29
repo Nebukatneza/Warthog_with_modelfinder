@@ -27,10 +27,10 @@ case class CNF(clauseset: Set[Clause]){
   def getFunctions:List[FunctionSymbol]=clauseset.foldLeft(List[FunctionSymbol]())((total:List[FunctionSymbol],clause:Clause)=> clause.getFunctions ++ total).toSet.toList
 
   def getOnlyFunctions:List[FunctionSymbol]={
-    val resultList:List[FunctionSymbol]=List[FunctionSymbol]()
+    var resultList:List[FunctionSymbol]=List[FunctionSymbol]()
       for(f<-this.getFunctions){
         if (!(f.arity == 0 && f.name.matches("[0-9].*")))
-          f::resultList
+          resultList = f::resultList
       }
     return resultList
   }

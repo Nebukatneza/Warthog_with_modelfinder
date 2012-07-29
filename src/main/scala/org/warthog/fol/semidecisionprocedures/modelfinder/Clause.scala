@@ -136,7 +136,6 @@ case class Clause(entry: Set[FOLLiteral]) {
       val intersect = litsWithVarNames.intersect(litsWithoutVarNames)
       if(intersect.isEmpty)
         return Set(this)
-      //println(litsWithVarNames+"\n"+litsWithoutVarNames+"\n"+intersect)
       for (l<-litsWithoutVarNames){
         if (!litsWithVarNames.contains(l)){
           val newpred = FOLPredicate(newpredname,intersect.toSeq:_*)
@@ -229,7 +228,7 @@ case class Clause(entry: Set[FOLLiteral]) {
 
   def testClause(solver:Solver,domain: Int)={
     val vars = this.getVariables
-     for (m<-Clause.createSubstituteMap(vars,domain) if solver.sat(Infinity)<1){
+     for (m<-Clause.createSubstituteMap(vars,domain) if solver.sat(Infinity)==1){
        Modelfinder.testClauseInstantiation(this.substitute(combine(vars.toList,m)),solver)
      }
   }
@@ -239,66 +238,6 @@ case class Clause(entry: Set[FOLLiteral]) {
   def combine(vars:List[Variable[FOL]],ntuple:List[Int]):Map[FOLVariable,FOLFunction]={
    (vars.asInstanceOf[List[FOLVariable]] zip ntuple.map(i=> FOLFunction(i.toString))).toMap
   }
-
- /* def testClause(clauseset:Set[Clause],setVars:Set[FOLVariable],inst:Map[FOLVariable,Int],domain:Int,ps:Picosat,solver:Solver):(Option[Map[FOLVariable,Int]],Boolean)={
-    var result = false
-    var freeVars = Set[FOLVariable]()
-    var instantiation = inst
-      for (v<-this.getVariables){
-        if (!(setVars.contains(v.asInstanceOf[FOLVariable])))
-          freeVars = freeVars.+(v.asInstanceOf[FOLVariable])
-      }
-      var currentInstantiation:Option[Map[FOLVariable,Int]] = Modelfinder.getInitialInstantiation(instantiation,freeVars,this)
-
-      if(currentInstantiation.isEmpty){
-        //println("schleifenzähler: "+ (schleifenzähler-1) + "\n Instanzierungszähler: " + (instanzierungzähler-1) +"\n Model: " + translateToModel(ps.getModel())+"\n Instanzierung: " + instantiation+"\n InstanzierungsKlausel: " +instantiationclause )
-        println("Hier sollte man nicht rausfliegen!")
-        return (None,false)
-      }
-      while(!currentInstantiation.isEmpty && ! result){
-        val instantiationclause = this.substitute(Modelfinder.getFinalInstantiation(currentInstantiation.get))
-        result = Modelfinder.testClauseInstantiation(instantiationclause,solver)
-        instantiation = instantiation ++ currentInstantiation.get
-        println("teste: "+instantiation.toString + " für "+this)
-        currentInstantiation = Modelfinder.getNextInstantiation(currentInstantiation.get,freeVars,domain)
-        if(! result){
-          //println("und jetzt undo")
-          ps.undo()
-        }
-        //instanzierungzähler = instanzierungzähler +1
-      }
-      if(! result){
-        println("Alle Möglichkeiten durchlaufen")
-        val newinst = Modelfinder.getNextInstantiation(instantiation,this.getVariables.asInstanceOf[Set[FOLVariable]],domain)
-        if(newinst.isEmpty){
-          println("Abbruch, gibt keine Möglichkeiten mehr")
-          return (None,false)
-        }
-        else{
-          println("Backtrack mit: "+instantiation)
-          return (Some(instantiation),true)}
-      }else{
-        if(clauseset.isEmpty){
-          println("Das war die letzte Klause! Ergebnis ist: "+ instantiation)
-          return (Some(instantiation),false)
-        }
-        println("zur nächsten Klausel: "+ clauseset.head)
-        val recurse = clauseset.head.testClause(clauseset.tail,setVars++freeVars,instantiation,domain,ps,solver)
-        val backtrack = recurse._2
-        if (backtrack){
-          val newinst = Modelfinder.getNextInstantiation(recurse._1.get,this.getVariables.asInstanceOf[Set[FOLVariable]],domain)
-          if(newinst.isEmpty){
-            println("Abbruch, gibt nach Backtrack keine Möglichkeiten mehr")
-            return (None,false)
-          }
-          return this.testClause(clauseset,setVars,newinst.get,domain,ps,solver)
-        }
-        return (recurse._1,false)
-      }
-
-
-  }     */
-
 
 }
 
@@ -366,8 +305,6 @@ object Clause{
     (term match {
       case term: FOLVariable => (term, Set[FOLLiteral]())
       case term: FOLFunction  =>
-            if(term.symbol.arity == 0 && term.symbol.name.matches("[0-9].*"))
-              return (term, Set[FOLLiteral]())
             if(isEquals){
               val lisset = termsflatten(term.args.toList,false,false)
               val newfun: FOLFunction = FOLFunction(term.symbol, lisset._1.toSeq: _*)
@@ -386,59 +323,61 @@ object Clause{
     })
 
   def instantiate(lits:List[FOLLiteral],varmap:Map[FOLVariable,FOLTerm]):Option[List[FOLLiteral]]={
-      val result = instanciateHelper(lits,varmap)
+      val result = instantiationSubstitution(lits,varmap)
       if (result._2)
         return None
       else
         return Some(result._1)
-    /*var newlist = List[FOLLiteral]()
-    for (l<-lits){
-      newlist = FOLLiteral(l.phase,l.predicate.tsubst(varmap))::newlist
-    }
-    return newlist*/
   }
 
-  def instanciateHelper(lits:List[FOLLiteral],varmap:Map[FOLVariable,FOLTerm]):(List[FOLLiteral],Boolean)={
+  def instantiationSubstitution(lits:List[FOLLiteral],varmap:Map[FOLVariable,FOLTerm]):(List[FOLLiteral],Boolean)={
 
 
         if (lits==List[FOLLiteral]())
           {return (List[FOLLiteral](),false) }
 
-        var rekurs= instanciateHelper(lits.tail,varmap)
+        var rekurs= instantiationSubstitution(lits.tail,varmap)
 
         if (rekurs._2)
         {return (List[FOLLiteral](),true)}
 
-        val newpred = lits.head.predicate.tsubst(varmap)//TODO: Modularisieren
-        if (isConstantEquation(newpred)){
-           val constantLeft = newpred.args(0)
-           val constantRight = newpred.args(1)
-            if(constantLeft.equals(constantRight)){
-              if (lits.head.phase){
-                return (List[FOLLiteral](),true)
-              }else{
-                return (rekurs._1,false)
-              }
-            }else{
-             if(isConstant(constantLeft.asInstanceOf[FOLFunction]) && isConstant(constantRight.asInstanceOf[FOLFunction])){//TODO: hier noch abfrage auf mindestens eine nichtDomänenkonstante einfügen
-              if(lits.head.phase){
-                return (rekurs._1,false)
-              }else{
-                return (List[FOLLiteral](),true)
-                }
-              }
-            }
-          }
-        return (List(FOLLiteral(lits.head.phase,newpred))++rekurs._1,false)
+        val newpred = lits.head.predicate.tsubst(varmap)
+        eliminateTrivialEquations(newpred,lits.head.phase,rekurs)
+  }
 
+  def eliminateTrivialEquations(pred:FOLPredicate,phase:Boolean,rekurs:(List[FOLLiteral],Boolean)):(List[FOLLiteral],Boolean)={
+    if (isConstantEquation(pred)){
+      val constantLeft = pred.args(0)
+      val constantRight = pred.args(1)
+      if(constantLeft.equals(constantRight)){
+        if (phase){
+          return (List[FOLLiteral](),true)
+        }else{
+          return (rekurs._1,false)
+        }
+      }else{
+        if(isDomainConstant(constantLeft.asInstanceOf[FOLFunction]) && isDomainConstant(constantRight.asInstanceOf[FOLFunction])){
+          if(phase){
+            return (rekurs._1,false)
+          }else{
+            return (List[FOLLiteral](),true)
+          }
+        }
+      }
+    }
+    return (List(FOLLiteral(phase,pred))++rekurs._1,false)
   }
 
 
 
   def createPlAtom:Atom[PL]=PLAtom("Atom"+(Modelfinder.predhash.size+1).toString)
 
-  def isConstant(func:FOLFunction):Boolean={
+  def isDomainConstant(func:FOLFunction):Boolean={
     return func.symbol.arity==0 && func.symbol.name.matches("[0-9].*")
+  }
+
+  def isConstant(func:FOLFunction):Boolean={
+    return func.symbol.arity==0
   }
 
   private def isConstantEquation(newpred:FOLPredicate):Boolean=
