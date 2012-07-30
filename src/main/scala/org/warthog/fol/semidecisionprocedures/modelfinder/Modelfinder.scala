@@ -72,39 +72,89 @@ object Modelfinder{
    */
 
 
-  def main(cnf:CNF,domain:Int,mode:String):String={
+  def main(cnf:CNF,domain:Int):String={
     val t0 = System.nanoTime : Double
-    val result = "bla"//run(cnf,domain)
+    val result = run(cnf,domain)
     val t1 = System.nanoTime : Double
-    /*mode match{
-       case "-help" => "possible Arguments are: -help,-cnf, -domain, -flattendcnf, -currentMap, -currentModel, -loopCounter, -maxPossibleLoops, -result\nThe date is given via Modelfinder.run(CNF,DOMAIN)"
-       case "-cnf" => result._1.toString
-       case "-domain" => result._2.toString
-       case "-flattendcnf" => result._3.toString
-       case "currentMap" => result._4.-(FOLVariable("0")).toString
-       case "currentModel" => result._5.toString
-       case "loopCounter" => result._6.toString
-       case "maxPossibleLoops" => result._7.toString
-       case "-result" => result._8.toString
-       case "-time" => (t1-t0)/ 1000000.0 + " msecs"
-       case _ => "For Help write -help as 3. Argument\nCNF: "+result._1.toString+
-                                                    "\nDomain: "+result._2.toString+
-                                                    "\nFlattend CNF: "+result._3.toString+
-                                                    "\nAssinment of Variables: "+result._4.toString+
-                                                    "\nModel: "+result._5.toString+
-                                                    "\nInstantiation "+result._6.toString+" of "+result._7.toString+" possible Instantiations"+
-                                                    "\nThe Result is "+result._8.toString+" with 1 for SAT and -1 for UNSAT"+
-                                                    "\nElapsed time: " + (t1 - t0) / 1000000.0 + " msecs"
-    } */
+    val viewableResult = interpredResult(result)
+    return ((t1-t0)/1000000).toString+"ms\n"+ viewableResult
+  }
+
+  def interpredResult(maybeclauseset:Option[Set[Clause]]):String={
+      if(maybeclauseset.isEmpty)
+        return "UNSAT"
+      val result = interpredPredicateAndFunctionResults(maybeclauseset.get)
     return result
   }
 
-  def run(cnf:CNF,domain:Int):String={
+  def interpredPredicateAndFunctionResults(clauseset:Set[Clause]):String={
+    var result = ""
+    if (clauseset.isEmpty)
+        return result
+      if (Clause.predicateIsEquality(clauseset.head.entry.head.predicate)){
+        if(!Clause.isDomainConstant(clauseset.head.entry.head.predicate.args.head.asInstanceOf[FOLFunction])){
+          val func = clauseset.head.entry.head.predicate.args.head.asInstanceOf[FOLFunction]
+          val interpredTupel = writeFunctionInterpredation(func,clauseset)
+          result = interpredTupel._1 + interpredPredicateAndFunctionResults(interpredTupel._2)
+        }
+        if(!Clause.isDomainConstant(clauseset.head.entry.head.predicate.args.tail.head.asInstanceOf[FOLFunction])){
+          val func = clauseset.head.entry.head.predicate.args.tail.head.asInstanceOf[FOLFunction]
+          val interpredTupel = writeFunctionInterpredation(func,clauseset)
+          result = interpredTupel._1 + interpredPredicateAndFunctionResults(interpredTupel._2)
+        }
+        if (result.equals(""))                                                                            //beide Argumente waren Domänenelemente
+          result = interpredPredicateAndFunctionResults(clauseset.tail)
+      }
+      else{
+        val pred = clauseset.head.entry.head.predicate
+        val interpredTupel = writePredicateInterpretation(pred,clauseset)
+        result = interpredTupel._1 + interpredPredicateAndFunctionResults(interpredTupel._2)
+      }
+      return result
+  }
+
+  def writePredicateInterpretation(pred:FOLPredicate,clauseset:Set[Clause]):(String,Set[Clause])={
+    var returnSet = clauseset
+    var returnString = "\nPredicate: "+pred.symbol.name+ "\n"
+    for (c<-clauseset){
+      if (c.entry.head.predicate.symbol.name.equals(pred.symbol.name)){
+         returnSet = returnSet-c
+         returnString = returnString + c.entry.head.predicate + " = " + c.entry.head.phase+"\n"
+      }
+    }
+    return (returnString,returnSet)
+  }
+
+  def writeFunctionInterpredation(func:FOLFunction,clauseset:Set[Clause]):(String,Set[Clause])={
+    var returnSet = clauseset
+    var returnString = "\nFunction: "+func.symbol.name+ "\n"
+    for (c<-clauseset){
+      if (Clause.predicateIsEquality(c.entry.head.predicate)){
+        if (c.entry.head.predicate.args.head.asInstanceOf[FOLFunction].symbol.name.equals(func.symbol.name)){
+          returnSet = returnSet-c
+          if(c.entry.head.phase)
+            returnString = returnString + c.entry.head.predicate.args.head + " = " + c.entry.head.predicate.args.tail.head+"\n"
+          else
+            returnString = returnString + c.entry.head.predicate.args.head + " != " + c.entry.head.predicate.args.tail.head+"\n"
+        }
+        if (c.entry.head.predicate.args.tail.head.asInstanceOf[FOLFunction].symbol.name.equals(func.symbol.name)){
+          returnSet = returnSet-c
+          if(c.entry.head.phase)
+            returnString = returnString + c.entry.head.predicate.args.tail.head + " = " + c.entry.head.predicate.args.head+"\n"
+          else
+            returnString = returnString + c.entry.head.predicate.args.tail.head + " != " + c.entry.head.predicate.args.head+"\n"
+        }
+      }
+    }
+    return (returnString,returnSet)
+  }
+
+  def run(cnf:CNF,domain:Int):Option[Set[Clause]]={
     //val flattendcnf = runflatten(cnf)
     val funcclauses = functionaldefs(domain,cnf)
     val clauseset = cnf.clauseset
     val ps = new Picosat
-    var result = ""
+    var result:Option[Set[Clause]] = None
     sat(ps) {
       (solver: Solver) => {
         for(n<-funcclauses){
@@ -114,11 +164,9 @@ object Modelfinder{
           c.clauseflatten.testClause(solver,domain)
         }
         if (solver.sat(Infinity)==1)
-          result = translateToModel(solver.getModel()).toString()
+          result = Some(translateToModel(solver.getModel()))
       }}
-    if(!result.isEmpty)
-      return "Sat"+result
-    return "UNSAT"
+    return result
   }
 
   def testClauseInstantiation(c:Option[Clause],solver:Solver):Boolean={
@@ -219,18 +267,6 @@ object Modelfinder{
     for(f<-funcs){
       newclauses = functionclauses(domain,f) ++ newclauses
     }
-    if (funcs.isEmpty){
-      for (d<-1 to domain){
-        for (e<-1 to domain){                                                                                           // Functional definitions
-          if (d.equals(e)){
-            newclauses = newclauses ++ List(Clause(Set(FOLLiteral(true,FOLPredicate("=",FOLFunction(d.toString),FOLFunction(e.toString))))))
-          } else{
-
-            newclauses = newclauses ++ List(Clause(Set(FOLLiteral(false,FOLPredicate("=",FOLFunction(d.toString),FOLFunction(e.toString))))))
-          }
-        }
-      }
-    }
     return newclauses.toSet
   }
 
@@ -245,7 +281,7 @@ object Modelfinder{
             newclauses = newclauses ++ List(Clause(Set(FOLLiteral(true,FOLPredicate("=",FOLFunction(d.toString),FOLFunction(e.toString))))))
           } else{
             for (f:FOLFunction <-funlis){
-              newclauses = newclauses ++ List(Clause(Set(FOLLiteral(false,FOLPredicate("=",f,FOLVariable(d.toString()))),FOLLiteral(false,FOLPredicate("=",f,FOLVariable(e.toString()))))))
+              newclauses = newclauses ++ List(Clause(Set(FOLLiteral(false,FOLPredicate("=",f,FOLFunction(d.toString()))),FOLLiteral(false,FOLPredicate("=",f,FOLFunction(e.toString()))))))
             }
             newclauses = newclauses ++ List(Clause(Set(FOLLiteral(false,FOLPredicate("=",FOLFunction(d.toString),FOLFunction(e.toString))))))
           }
@@ -255,7 +291,7 @@ object Modelfinder{
     for (f<-funlis){
         var newfunclauseset=Set[FOLLiteral]()                                                                                   //Totality definitions
         for (i<- 1 to domain){
-          newfunclauseset = newfunclauseset ++ Set(FOLLiteral(true,FOLPredicate("=",f,FOLVariable(i.toString()))))
+          newfunclauseset = newfunclauseset ++ Set(FOLLiteral(true,FOLPredicate("=",f,FOLFunction(i.toString()))))
         }
         newclauses = newclauses ++ List(Clause(newfunclauseset))
       }
@@ -289,4 +325,20 @@ object Modelfinder{
       case other => sys.error("Something went wrong with the translate to Model of the sat-solver result: The entry was no And but: "+form.toString)
       }
     }
+
+  def buildPredicates(p:FOLPredicate):FOLPredicate={
+    if (Clause.predicateIsEquality(p)){
+      val reversepred = new FOLPredicate(p.symbol,p.args.reverse:_*)
+       if (Modelfinder.predhash.contains(reversepred)){
+         return reversepred
+       }
+    }
+
+    if(!Modelfinder.predhash.contains(p)){
+      val c = Clause.createPlAtom
+      Modelfinder.predhash.put(p,c)
+      Modelfinder.predhashreverse.put(c,p)
+    }
+    return p
+  }
 }

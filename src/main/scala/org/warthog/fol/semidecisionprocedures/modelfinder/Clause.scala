@@ -79,22 +79,11 @@ case class Clause(entry: Set[FOLLiteral]) {
     if(entry.isEmpty)
       formula = Falsum()
     for(e<-entry){
-      if(Modelfinder.predhash.contains(e.predicate)){
-        if(e.phase){
-          formula=Or[PL](formula,Modelfinder.predhash.get(e.predicate).get)
-        }else{
-          formula=Or[PL](formula,Not[PL](Modelfinder.predhash.get(e.predicate).get))
-        }
-
+      val p = Modelfinder.buildPredicates(e.predicate)
+      if(e.phase){
+        formula=Or[PL](formula,Modelfinder.predhash.get(p).get)
       }else{
-        val c = Clause.createPlAtom
-        Modelfinder.predhash.put(e.predicate,c)
-        Modelfinder.predhashreverse.put(c, e.predicate)
-        if(e.phase){
-          formula=Or[PL](formula,Modelfinder.predhash.get(e.predicate).get)
-        }else{
-          formula=Or[PL](formula,Not[PL](Modelfinder.predhash.get(e.predicate).get))
-        }
+        formula=Or[PL](formula,Not[PL](Modelfinder.predhash.get(p).get))
       }
     }
     return formula
@@ -272,7 +261,7 @@ object Clause{
 
 
   def predicateflatten(lit: FOLLiteral): (Set[FOLLiteral],Option[Map[FOLVariable,FOLVariable]]) = {
-    val isEquals = (lit.predicate.symbol.name.equals("=") && (lit.predicate.symbol.arity == 2))
+    val isEquals = Clause.predicateIsEquality(lit.predicate)
     val lisset = termsflatten(lit.predicate.args.toList,isEquals,lit.phase)
     if (lisset._3.isEmpty){
       val newlit: FOLLiteral = FOLLiteral(lit.phase,FOLPredicate(lit.predicate.symbol, lisset._1.toSeq: _*))
@@ -425,4 +414,6 @@ object Clause{
   def createSubstituteMap(vars:Set[Variable[FOL]],domain:Int):Stream[List[Int]]={
     return Clause.allNTuples(vars.size,toCartesianInput((1 until domain+1).toStream))
   }
+
+  def predicateIsEquality(pred:FOLPredicate):Boolean=pred.symbol.name.equals("=") && (pred.symbol.arity == 2)
 }

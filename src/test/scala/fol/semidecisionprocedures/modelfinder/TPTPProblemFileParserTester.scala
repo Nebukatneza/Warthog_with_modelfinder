@@ -13,7 +13,7 @@ import org.warthog.fol.formulas.{FOLPredicate, FOLFunction, FOLVariable}
  * To change this template use File | Settings | File Templates.
  */
 
-class TPTPParserTester extends Specification{
+class TPTPProblemFileParserTester extends Specification{
 
   val test1 = "L:/Bachelor/test1.ax"
   val a = FOLFunction("a")

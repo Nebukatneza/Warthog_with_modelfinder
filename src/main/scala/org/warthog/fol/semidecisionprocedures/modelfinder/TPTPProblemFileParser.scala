@@ -12,8 +12,8 @@ import org.warthog.generic.formulas.{Not, Formula,Or}
  * To change this template use File | Settings | File Templates.
  */
 
-object TPTPParser {
-
+object TPTPProblemFileParser {
+  val filehome = "L:/Bachelor/TPTP-v5.4.0/TPTP-v5.4.0/"
   val filename = "L:/Bachelor/TPTP-v5.4.0/TPTP-v5.4.0/Axioms/GRP005-0.ax"
 
 
@@ -39,6 +39,12 @@ object TPTPParser {
     var i = 0
     while(i < lineArray.size){
       lineArray(i).toSeq match {
+        case Seq('i','n','c','l','u','d','e','(',suffix@_*)=> {
+          var resultLiterals = suffix.toString()
+          resultLiterals = filehome+resultLiterals.tail.reverse.tail.tail.tail.reverse
+          println(resultLiterals)
+          clauseset = clauseset ++ interpredProblem(resultLiterals).clauseset
+        }
         case Seq('c','n','f','(',suffix@_*)=> {
           var j = 1
           var resultLiterals= suffix.toString()
