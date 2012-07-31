@@ -150,7 +150,6 @@ object Modelfinder{
   }
 
   def run(cnf:CNF,domain:Int):Option[Set[Clause]]={
-    //val flattendcnf = runflatten(cnf)
     val funcclauses = functionaldefs(domain,cnf)
     val clauseset = cnf.clauseset
     val ps = new Picosat
@@ -161,7 +160,9 @@ object Modelfinder{
           solver.add(n.translateToPL())
         }
         for (c<-clauseset){
-          c.clauseflatten.testClause(solver,domain)
+          for (d<-c.splitGrounds())
+            for (e<-d.binarySplit())
+              e.clauseflatten.testClause(solver,domain)
         }
         if (solver.sat(Infinity)==1)
           result = Some(translateToModel(solver.getModel()))
