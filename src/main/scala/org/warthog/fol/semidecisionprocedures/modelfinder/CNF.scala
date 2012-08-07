@@ -5,16 +5,28 @@ import org.warthog.fol.formulas._
 import org.warthog.fol.formulas.FunctionSymbol
 import org.warthog.fol.formulas.FOLVariable
 import scala.Some
-import org.warthog.fol.semidecisionprocedures.modelfinder.CNF
 
 
 case class CNF(clauseset: Set[Clause]){
 
+  /**
+    * returns all Variables of the cnf
+    * @return
+    */
   def getVariables:Set[Variable[FOL]]= clauseset.foldLeft(Set[Variable[FOL]]())((total:Set[Variable[FOL]],clause:Clause) => clause.getVariables ++ total)
-  def getPredicates:Set[String]=clauseset.foldLeft(Set[String]())((total:Set[String],clause:Clause) => clause.getPredicates ++ total)
 
+  /**
+    * returns all predicateSymbols of the cnf
+    * @return
+    */
+  def getPredicates:Set[PredicateSymbol]=clauseset.foldLeft(Set[PredicateSymbol]())((total:Set[PredicateSymbol],clause:Clause) => clause.getPredicates ++ total)
+
+  /**
+    * substitutes all Variables in the cnf with help of the varmap
+    * @param varmap the map for the substitution from FOLVariable to domainElement
+    * @return a cnf with domainElements
+    */
   def substitute(varmap:Map[FOLVariable,FOLTerm]):CNF={
-              //CNF(clauseset.map(c => c.substitute(varmap)))
     var resultset = Set[Clause]()
     for (c<-clauseset){
       c.substitute(varmap) match {
@@ -24,8 +36,17 @@ case class CNF(clauseset: Set[Clause]){
     }
     return CNF(resultset)
   }
+
+  /**
+    * returns all functionSymbols of the cnf
+    * @return
+    */
   def getFunctions:List[FunctionSymbol]=clauseset.foldLeft(List[FunctionSymbol]())((total:List[FunctionSymbol],clause:Clause)=> clause.getFunctions ++ total).toSet.toList
 
+  /**
+    * returns all functionSymbols, which are not domainElements, of the cnf
+    * @return
+    */
   def getOnlyFunctions:List[FunctionSymbol]={
     var resultList:List[FunctionSymbol]=List[FunctionSymbol]()
       for(f<-this.getFunctions){

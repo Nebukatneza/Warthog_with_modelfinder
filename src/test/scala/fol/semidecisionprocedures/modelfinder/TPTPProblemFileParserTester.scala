@@ -1,7 +1,7 @@
 package fol.semidecisionprocedures.modelfinder
 
 import org.specs2.mutable.Specification
-import org.warthog.fol.semidecisionprocedures.modelfinder.{FOLLiteral, Clause,Modelfinder,CNF,TPTPParser}
+import org.warthog.fol.semidecisionprocedures.modelfinder.{FOLLiteral, Clause,Modelfinder,CNF,TPTPProblemFileParser}
 import org.warthog.fol.formulas.{FOLPredicate, FOLFunction, FOLVariable}
 
 
@@ -24,7 +24,7 @@ class TPTPProblemFileParserTester extends Specification{
 
   test1 should{
     "be interpreted correctly" in {
-      TPTPParser.interpredProblem(test1) must be equalTo cnf1
+      TPTPProblemFileParser.interpredProblem(test1) must be equalTo cnf1
     }
   }
 

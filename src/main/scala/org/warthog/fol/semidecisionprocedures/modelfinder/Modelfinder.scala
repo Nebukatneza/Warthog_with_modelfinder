@@ -23,35 +23,9 @@ object Modelfinder{
   var constantName = "Constant"
   var constantHash:HashMap[FOLFunction,FOLFunction]=HashMap()
 
-
-  def test():CNF={
-    val a = FOLFunction("a")
-    val b = FOLFunction("b")
-    val c = FOLFunction("c")
-    val d = FOLFunction("d")
-    val e = FOLFunction("e")
-    val f = FOLFunction("f",b,a)
-    val g = FOLFunction("f",a,b)
-    val eins = FOLFunction("1")
-    val zwei = FOLFunction("2")
-    val x = FOLVariable("x")
-    val y = FOLVariable("y")
-    val z = FOLVariable("z")
-    val v = FOLVariable("v")
-    val w = FOLVariable("w")
-    val L =  FOLLiteral(true,FOLPredicate("=",x,y))
-    val M =  FOLLiteral(true,FOLPredicate("Q",x,y,z))
-    val N =  FOLLiteral(true,FOLPredicate("R",d,f))
-    val O =  FOLLiteral(true,FOLPredicate("O",a,d))
-    val P =  FOLLiteral(true,FOLPredicate("P",f,x))
-    val K =  FOLLiteral(true,FOLPredicate("=",y,eins))
-    val C = Clause(Set(L))
-    val cnf = CNF(Set(Clause(Set(P))))//,Clause(Set(N)),Clause(Set(O)),Clause(Set(P)),Clause(Set(K))))
-
-    return cnf
-  }
-
-
+  /**
+    * Resets the Modelfinder object
+    */
   def reset(){
     this.predhash=HashMap()
     this.predhashreverse=HashMap()
@@ -65,20 +39,58 @@ object Modelfinder{
 
 
   /**
-   * Runs the Modelfinder (main method)
-   * @param cnf
-   * @param domain
-   * @return INT, result of the picosat-solver
-   */
-
+    * Runs the Modelfinder (main method) without options
+    * @param cnf
+    * @param domain
+    * @return
+    */
 
   def main(cnf:CNF,domain:Int):String={
     val t0 = System.nanoTime : Double
-    val result = run(cnf,domain)
+    val result = run(cnf,domain,"")
     val t1 = System.nanoTime : Double
     val viewableResult = interpredResult(result)
     return ((t1-t0)/1000000).toString+"ms\n"+ viewableResult
   }
+
+  /**
+    * Runs the Modelfinder (main method) with options (for benchmarking)
+    * @param cnf
+    * @param domain
+    * @param option
+    * @param time
+    * @return
+    */
+
+  def main(cnf:CNF,domain:Int,option:String,time:Boolean):String={
+    if (time)
+      return getTime(cnf,domain,option)._1.toString
+    else{
+      val result = getTime(cnf,domain,option)
+      return result._1.toString+"ms\n"+result._2.toString
+    }
+  }
+
+  /**
+    * Computes the time needed for the algorithm and returns a Tuple of time in ms and the result as String
+    * @param cnf
+    * @param domain
+    * @param option
+    * @return
+    */
+
+  def getTime(cnf:CNF,domain:Int,option:String):(Double,String)={
+    val t0 = System.nanoTime : Double
+    val result = run(cnf,domain,option)
+    val t1 = System.nanoTime : Double
+    return (((t1-t0)/1000000),interpredResult(result))
+  }
+
+  /**
+    * gets an option for a Clauseset and interpreds it to a Stringoutput of eiter "UNSAT" or the interpreted result
+    * @param maybeclauseset
+    * @return
+    */
 
   def interpredResult(maybeclauseset:Option[Set[Clause]]):String={
       if(maybeclauseset.isEmpty)
@@ -87,6 +99,13 @@ object Modelfinder{
     return result
   }
 
+
+  /**
+    * returns a String, which contains interpretationformulas for the Clauseset.
+    * Predicates and Functions, which are added by the Algorithm are removed
+    * @param clauseset
+    * @return
+    */
   def interpredPredicateAndFunctionResults(clauseset:Set[Clause]):String={
     var result = ""
     if (clauseset.isEmpty)
@@ -113,29 +132,51 @@ object Modelfinder{
       return result
   }
 
+  /**
+    * returns the interpretation for a specific predicate in the Clauseset
+    * @param pred
+    * @param clauseset
+    * @return
+    */
+
   def writePredicateInterpretation(pred:FOLPredicate,clauseset:Set[Clause]):(String,Set[Clause])={
     var returnSet = clauseset
-    var returnString = "\nPredicate: "+pred.symbol.name+ "\n"
+    var returnString = ""
+    if(!pred.symbol.name.matches(predicateName+"[0-9].*"))
+      returnString = "\nPredicate: "+pred.symbol.name+ "\n"
     for (c<-clauseset){
       if (c.entry.head.predicate.symbol.name.equals(pred.symbol.name)){
          returnSet = returnSet-c
+        if(!pred.symbol.name.matches(predicateName+"[0-9].*"))
          returnString = returnString + c.entry.head.predicate + " = " + c.entry.head.phase+"\n"
       }
     }
     return (returnString,returnSet)
   }
 
+
+  /**
+    * returns the interpretation for a specific function in the Clauseset
+    * @param func
+    * @param clauseset
+    * @return
+    */
   def writeFunctionInterpredation(func:FOLFunction,clauseset:Set[Clause]):(String,Set[Clause])={
     var returnSet = clauseset
-    var returnString = "\nFunction: "+func.symbol.name+ "\n"
+    var returnString = ""
+    if(!func.symbol.name.matches(constantName+"[0-9].*")){
+      returnString = "\nFunction: "+func.symbol.name+ "\n"
+    }
     for (c<-clauseset){
       if (Clause.predicateIsEquality(c.entry.head.predicate)){
         if (c.entry.head.predicate.args.head.asInstanceOf[FOLFunction].symbol.name.equals(func.symbol.name)){
           returnSet = returnSet-c
-          if(c.entry.head.phase)
-            returnString = returnString + c.entry.head.predicate.args.head + " = " + c.entry.head.predicate.args.tail.head+"\n"
-          else
-            returnString = returnString + c.entry.head.predicate.args.head + " != " + c.entry.head.predicate.args.tail.head+"\n"
+          if(!func.symbol.name.matches(constantName+"[0-9].*")){
+            if(c.entry.head.phase)
+              returnString = returnString + c.entry.head.predicate.args.head + " = " + c.entry.head.predicate.args.tail.head+"\n"
+            else
+              returnString = returnString + c.entry.head.predicate.args.head + " != " + c.entry.head.predicate.args.tail.head+"\n"
+          }
         }
         if (c.entry.head.predicate.args.tail.head.asInstanceOf[FOLFunction].symbol.name.equals(func.symbol.name)){
           returnSet = returnSet-c
@@ -149,9 +190,33 @@ object Modelfinder{
     return (returnString,returnSet)
   }
 
-  def run(cnf:CNF,domain:Int):Option[Set[Clause]]={
+
+  /**
+   * runs the modelfinding Algorithm, with option to binarySplitting and groundSplitting
+   * "-none" means no improvments
+   * "-binSplit" means only binarySplitting as improvement
+   * "-groundSplit" means only groundSplitting as improvement
+   * any other options means both improvements are used
+   * @param cnf
+   * @param domain
+   * @param option
+   * @return
+   */
+  def run(cnf:CNF,domain:Int,option:String):Option[Set[Clause]]={
+    var binSplit = true
+    var groundSplit = true
+    option match {
+      case "-none" => {binSplit = false
+                       groundSplit = false}
+      case "-binSplit" => groundSplit = false
+      case "-groundSplit" => binSplit = false
+      case other =>
+    }
+
+    reset()
     val funcclauses = functionaldefs(domain,cnf)
     val clauseset = cnf.clauseset
+    Modelfinder.getfreeVariableName(cnf)
     val ps = new Picosat
     var result:Option[Set[Clause]] = None
     sat(ps) {
@@ -160,9 +225,25 @@ object Modelfinder{
           solver.add(n.translateToPL())
         }
         for (c<-clauseset){
-          for (d<-c.splitGrounds())
-            for (e<-d.binarySplit())
-              e.clauseflatten.testClause(solver,domain)
+          if (!(binSplit||groundSplit))
+            c.clauseflatten.testClause(solver,domain)
+          else{
+            if (!binSplit){
+              for (d<-c.splitGrounds())
+                d.clauseflatten.testClause(solver,domain)
+            }else{
+              if (!groundSplit){
+                for (d<-c.clauseflatten.binarySplit)
+                  d.testClause(solver,domain)
+              }else{
+                for (d<-c.splitGrounds())
+                  for (e<-d.clauseflatten.binarySplit()){
+                    e.testClause(solver,domain)
+                  }
+              }
+            }
+          }
+
         }
         if (solver.sat(Infinity)==1)
           result = Some(translateToModel(solver.getModel()))
@@ -170,6 +251,12 @@ object Modelfinder{
     return result
   }
 
+  /**
+   * adds a specific instatiated Clause to the Solver
+   * @param c
+   * @param solver
+   * @return
+   */
   def testClauseInstantiation(c:Option[Clause],solver:Solver):Boolean={
     if (!c.isEmpty)
       solver.add(c.get.translateToPL())
@@ -177,50 +264,46 @@ object Modelfinder{
   }
 
   /**
-   * flattens the cnf
-   * @param cnf
-   * @return
-   */
-  def runflatten(cnf: CNF): CNF ={
-    getfreeVariableName(cnf)
-    val newcnf = CNF(cnf.clauseset.map(c => c.clauseflatten))
-    newcnf
-  }
-
-  def runBinarySplit(cnf:CNF):CNF={
-    getfreePredicateName(cnf)
-    var newclauseset = cnf.clauseset.foldLeft(Set[Clause]())((total:Set[Clause],clause:Clause) => clause.binarySplit() ++ total)
-    return CNF(newclauseset)
-  }
-
-  def runSplitGrounds(cnf:CNF):CNF={
-    getfreeConstantName(cnf)
-    var newclauseset =cnf.clauseset.foldLeft(Set[Clause]())((total:Set[Clause],clause:Clause) => clause.splitGrounds() ++ total)
-    return CNF(newclauseset)
-  }
-
+    * adds a new variable to the varhash
+    * @param term
+    * @return
+    */
   def createnewVariableName(term:FOLFunction)={
     val v = FOLVariable(variableName+(varhash.size+1).toString)
     varhash.put(term,v)
   }
 
+
+  /**
+    * adds a new constant to the constantHash
+    * @param term
+    * @return
+    */
   def createnewConstantName(term:FOLFunction)={
     val c =FOLFunction(constantName++(constantHash.size+1).toString)
     constantHash.put(term,c)
   }
 
+
+  /**
+    * returns a new predicatename
+    * @return
+    */
   def createnewPredicateName():String={
     predcounter=predcounter+1
     predicateName+predcounter.toString
   }
 
+
+  /**
+    * sets the variableName to a name not existing in the cnf
+    * @param cnf
+    */
   def getfreeVariableName(cnf:CNF)={
     variableName = getfreeVariableNameHelper(cnf.getVariables.toList,cnf)
   }
 
- def getfreeConstantName(cnf:CNF)={
-    constantName = getfreeConstantNameHelper(cnf.getFunctions,cnf)
-  }
+
 
   def getfreeVariableNameHelper(vars:List[Variable[FOL]],cnf:CNF):String={
     if (vars.isEmpty)
@@ -234,21 +317,37 @@ object Modelfinder{
     }
   }
 
+  /**
+    * sets the predicateName to a name not existing in the cnf
+    * @param cnf
+    */
+
   def getfreePredicateName(cnf:CNF)={
     predicateName = getfreePredicateNameHelper(cnf.getPredicates.toList,cnf)
   }
 
-  def getfreePredicateNameHelper(names:List[String],cnf:CNF):String={
-    if (names.isEmpty)
+  def getfreePredicateNameHelper(symbols:List[PredicateSymbol],cnf:CNF):String={
+    if (symbols.isEmpty)
       return predicateName
 
-    if(names.head.toString.matches(predicateName + "[0-9].*")){
+    if(symbols.head.name.toString.matches(predicateName + "[0-9].*")){
       predicateName = "Predicate"+Random.nextString(3)
       return getfreePredicateNameHelper(cnf.getPredicates.toList,cnf)
     }else{
-      return getfreePredicateNameHelper(names.tail,cnf)
+      return getfreePredicateNameHelper(symbols.tail,cnf)
     }
   }
+
+  /**
+    * sets the constantName to a name not existing in the cnf
+    * @param cnf
+    */
+
+  def getfreeConstantName(cnf:CNF)={
+    constantName = getfreeConstantNameHelper(cnf.getFunctions,cnf)
+  }
+
+
 
   def getfreeConstantNameHelper(funcs:List[FunctionSymbol],cnf:CNF):String={
     if (funcs.isEmpty)
@@ -262,6 +361,13 @@ object Modelfinder{
     }
   }
 
+
+  /**
+    * creates the clauses for the functional dependencies of all functions in the cnf
+    * @param domain
+    * @param cnf
+    * @return
+    */
   def functionaldefs(domain: Int,cnf:CNF):Set[Clause]={
     val funcs:List[FunctionSymbol]=cnf.getOnlyFunctions
     var newclauses:List[Clause]=List[Clause]()
@@ -272,7 +378,12 @@ object Modelfinder{
   }
 
 
-
+  /**
+    * creates the clauses for the functional dependecies for the function symbol f
+    * @param domain
+    * @param f
+    * @return
+    */
   def functionclauses(domain:Int,f:FunctionSymbol):List[Clause]={
     var newclauses:List[Clause]=List[Clause]()
     val funlis = allArgumentsFunctionList(domain,f)
@@ -289,10 +400,10 @@ object Modelfinder{
 
         }
       }
-    for (f<-funlis){
+    for (func<-funlis){
         var newfunclauseset=Set[FOLLiteral]()                                                                                   //Totality definitions
         for (i<- 1 to domain){
-          newfunclauseset = newfunclauseset ++ Set(FOLLiteral(true,FOLPredicate("=",f,FOLFunction(i.toString()))))
+          newfunclauseset = newfunclauseset ++ Set(FOLLiteral(true,FOLPredicate("=",func,FOLFunction(i.toString()))))
         }
         newclauses = newclauses ++ List(Clause(newfunclauseset))
       }
@@ -301,11 +412,11 @@ object Modelfinder{
   }
 
   /**
-   * builds a list of all possible arguments for the FunctionSymbol and the domain
-   * @param domain
-   * @param f
-   * @return
-   */
+    * builds a list of all possible arguments for the FunctionSymbol and the domain
+    * @param domain
+    * @param f
+    * @return
+    */
   def allArgumentsFunctionList(domain:Int,f:FunctionSymbol):List[FOLFunction]={
     var newFunctionslis = List[FOLFunction]()
     if(f.arity == 0)
@@ -316,6 +427,12 @@ object Modelfinder{
     return newFunctionslis
   }
 
+  /**
+    * translates a PL Formula to a set of first order clauses
+    * @param form
+    * @return
+    */
+
   def translateToModel(form:Formula[PL]):Set[Clause]={
     var result = Set():Set[Clause]
     form match {
@@ -323,9 +440,16 @@ object Modelfinder{
                             return result
       case atom:Atom[PL] => return Set(Clause(Set(FOLLiteral(true,predhashreverse.get(atom).get))))
       case Not(atom:Atom[PL]) => return Set(Clause(Set(FOLLiteral(false,predhashreverse.get(atom).get))))
+      case _:TruthValue[PL] => return result
       case other => sys.error("Something went wrong with the translate to Model of the sat-solver result: The entry was no And but: "+form.toString)
       }
     }
+
+  /**
+    * identifies symetric equalities and adds the predicate to the predhash and predhashreverse if necessary
+    * @param p
+    * @return
+    */
 
   def buildPredicates(p:FOLPredicate):FOLPredicate={
     if (Clause.predicateIsEquality(p)){

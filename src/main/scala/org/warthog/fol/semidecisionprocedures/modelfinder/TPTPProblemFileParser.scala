@@ -14,7 +14,8 @@ import org.warthog.generic.formulas.{Not, Formula,Or}
 
 object TPTPProblemFileParser {
   val filehome = "L:/Bachelor/TPTP-v5.4.0/TPTP-v5.4.0/"
-  val filename = "L:/Bachelor/TPTP-v5.4.0/TPTP-v5.4.0/Axioms/GRP005-0.ax"
+  val filename = "L:/Bachelor/TPTP-v5.4.0/TPTP-v5.4.0/Problems/SWV/SWV012-1.p"
+  //val filename = "L:/Bachelor/test1.ax"
 
 
   def readFile(name:String):Array[String]={

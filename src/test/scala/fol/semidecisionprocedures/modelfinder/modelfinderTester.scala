@@ -151,28 +151,28 @@ fxynotfxy.toString should{
   trueVerumLit.toString should{
     "be satisfiable" in{
       Modelfinder.reset()
-      Modelfinder.main(CNF(Set(Clause(Set(trueVerumLit)))),2,"") must be equalTo "Sat: Map()"
+      Modelfinder.main(CNF(Set(Clause(Set(trueVerumLit)))),2) must be equalTo "Sat: Map()"
     }
   }
 
   falseVerumLit.toString should{
     "be unsatisfiable" in{
       Modelfinder.reset()
-      Modelfinder.main(CNF(Set(Clause(Set(falseVerumLit)))),2,"") must be equalTo "UNSAT"
+      Modelfinder.main(CNF(Set(Clause(Set(falseVerumLit)))),2) must be equalTo "UNSAT"
     }
   }
 
   trueFalsumLit.toString should{
     "be unsatisfiable" in{
       Modelfinder.reset()
-      Modelfinder.main(CNF(Set(Clause(Set(trueFalsumLit)))),2,"") must be equalTo "UNSAT"
+      Modelfinder.main(CNF(Set(Clause(Set(trueFalsumLit)))),2) must be equalTo "UNSAT"
     }
   }
 
   falseFalsumLit.toString should{
     "be satisfiable" in{
       Modelfinder.reset()
-      Modelfinder.main(CNF(Set(Clause(Set(falseFalsumLit)))),2,"") must be equalTo "Sat: Map()"
+      Modelfinder.main(CNF(Set(Clause(Set(falseFalsumLit)))),2) must be equalTo "Sat: Map()"
     }
   }
 
